@@ -1,0 +1,38 @@
+language: zh_CN
+
+storage:
+  sqlite_file: "books.db"
+  wal: true
+
+cache:
+  maximum_size: 2048
+  expire_after_access_minutes: 15
+
+limits:
+  max_pages: 100
+  max_page_json_bytes: 8192
+  max_total_json_bytes: 262144
+
+behavior:
+  auto_convert_signed_books: true
+  allow_crafting_copy: true
+  preserve_generation: true
+  shell_title_format: "BookLite #%short_id%"
+  shell_author: "BookLite"
+  shell_page_placeholder: "This book is stored by BookLite. Right-click to read it."
+  deleted_book_message: "这本书已被管理员删除。"
+  missing_book_message: "这本书的数据缺失，请联系管理员。"
+
+lectern:
+  enabled: true
+
+uninstall:
+  mode: false
+  passive_on_player_join: true
+  passive_on_inventory_open: true
+  max_items_per_tick: 64
+
+logging:
+  log_conversions: true
+  log_restores: true
+  log_admin_reads: true
