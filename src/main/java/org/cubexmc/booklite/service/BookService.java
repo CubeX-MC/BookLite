@@ -61,6 +61,12 @@ public class BookService {
         return changed;
     }
 
+    public int purgeDeleted(long deletedBeforeOrAt) throws SQLException {
+        int purged = repository.purgeDeleted(deletedBeforeOrAt);
+        if (purged > 0) cache.clear();
+        return purged;
+    }
+
     public BookRepository.Stats stats() throws SQLException {
         return repository.stats();
     }

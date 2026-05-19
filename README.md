@@ -1,55 +1,57 @@
 # BookLite
 
-BookLite is a lightweight written-book storage plugin for Paper/Spigot servers.
+BookLite 是一个面向 Paper / Spigot 服务器的轻量化成书存储插件。
 
-Instead of keeping every written book's full pages inside the item stack, BookLite stores the content in a local SQLite database and leaves only a tiny PDC marker on the item. Players still sign, read, copy, and restore books through normal gameplay-style actions.
+它不会把每一本成书的完整页面都塞在物品数据里，而是把正文保存到本地 SQLite 数据库中，物品本身只保留极小的 BookLite 标记。玩家仍然可以通过接近原版的方式写书、读书、复制书，管理员也能审查、软删除、恢复和最终清理书籍数据。
 
-## Features
+## 功能特性
 
-- SQLite-backed written book storage.
-- Content hash dedupe: identical active books reuse the same database row.
-- Tiny BookLite shell items with `book_id`, `generation`, and schema version in PDC.
-- `/booklite convert` for existing vanilla written books.
-- `/booklite restore` for returning a shell to a vanilla written book.
-- Automatic conversion when a player signs a book.
-- Right-click reading from database-backed content.
-- Crafting-copy support with correct generation increment and copy-of-copy limit.
-- Admin list/read/delete/undelete/status commands.
-- Soft delete: deleted content opens as a friendly system book instead of leaking pages.
-- Basic lectern reading compatibility: right-clicking a lectern holding a BookLite shell opens the stored book.
-- Uninstall mode: async passive inventory/container restore plus `/booklite restorecontainer`.
-- Short IDs from `/booklite list` are accepted by admin read/info/delete/undelete commands.
+- 使用 SQLite 保存成书内容。
+- 基于内容哈希去重：相同标题、作者和页面内容只保存一份正文。
+- 物品仅保留 `book_id`、`generation` 和 schema version 等 PDC 标记。
+- `/booklite convert` 可将已有原版成书转换为空壳书。
+- `/booklite restore` 可将 BookLite 空壳书还原为原版成书。
+- 玩家签名成书时可自动接管并轻量化。
+- 右键 BookLite 空壳书时从数据库读取并打开完整内容。
+- 支持工作台复制，正确递增复制代数并限制 copy-of-copy。
+- 管理员可 list/read/info/delete/undelete/status。
+- 支持软删除，已删除书籍打开时只显示友好提示，不泄露原文。
+- 支持 `/booklite purge <天数> confirm` 永久清理已软删除记录。
+- 基础讲台读取兼容：讲台上放置 BookLite 空壳书后，右键可打开数据库中的内容。
+- 卸载模式支持被动恢复玩家背包和已打开容器，并提供 `/booklite restorecontainer`。
+- 管理命令支持 `/booklite list` 显示的短 ID。
 
-## Commands
+## 命令
 
-| Command | Permission | Description |
+别名：`/bl`
+
+| 命令 | 权限 | 说明 |
 | --- | --- | --- |
-| `/booklite help` | any | Show available commands |
-| `/booklite convert` | `booklite.convert` | Convert held vanilla written book to a BookLite shell |
-| `/booklite restore` | `booklite.restore` | Restore held BookLite shell to a vanilla written book |
-| `/booklite status` | `booklite.admin.status` | Show database and cache counts |
-| `/booklite list [page]` | `booklite.admin.list` | List stored books |
-| `/booklite info <id>` | `booklite.admin.info` | Show metadata for one stored book |
-| `/booklite read <id>` | `booklite.admin.read` | Open a stored book as admin |
-| `/booklite delete <id>` | `booklite.admin.delete` | Soft-delete a stored book |
-| `/booklite undelete <id>` | `booklite.admin.delete` | Restore a soft-deleted book |
-| `/booklite restorecontainer` | `booklite.admin.restorecontainer` | Restore BookLite shells in the opened container or targeted container block |
-| `/booklite reload` | `booklite.admin.reload` | Reload config and language files |
+| `/booklite help` | 任意玩家 | 查看可用命令 |
+| `/booklite convert` | `booklite.convert` | 将手中原版成书转换为 BookLite 空壳书 |
+| `/booklite restore` | `booklite.restore` | 将手中 BookLite 空壳书还原为原版成书 |
+| `/booklite status` | `booklite.admin.status` | 查看数据库、缓存和卸载模式状态 |
+| `/booklite list [页码]` | `booklite.admin.list` | 分页列出数据库中的书籍 |
+| `/booklite info <id>` | `booklite.admin.info` | 查看单本书元数据，支持短 ID |
+| `/booklite read <id>` | `booklite.admin.read` | 管理员打开数据库中的书 |
+| `/booklite delete <id>` | `booklite.admin.delete` | 软删除一本书 |
+| `/booklite undelete <id>` | `booklite.admin.delete` | 撤销软删除 |
+| `/booklite purge <天数> confirm` | `booklite.admin.purge` | 永久清理软删除时间超过指定天数的书。填 `0` 表示清理全部已软删除记录 |
+| `/booklite restorecontainer` | `booklite.admin.restorecontainer` | 恢复当前打开容器或视线目标容器中的 BookLite 空壳书 |
+| `/booklite reload` | `booklite.admin.reload` | 重新加载配置与语言文件 |
 
-Alias: `/bl`
+## 权限
 
-## Permissions
+- `booklite.use`：允许阅读 BookLite 书籍。
+- `booklite.convert`：允许转换手中原版成书。
+- `booklite.restore`：允许还原手中 BookLite 空壳书。
+- `booklite.admin`：管理员父权限，包含 status、reload、list、info、read、delete、purge、restorecontainer。
 
-- `booklite.use` - read BookLite books.
-- `booklite.convert` - convert held vanilla books.
-- `booklite.restore` - restore held BookLite books.
-- `booklite.admin` - parent permission for admin commands.
-
-## Configuration
-
-Important sections:
+## 配置示例
 
 ```yaml
+language: zh_CN
+
 storage:
   sqlite_file: "books.db"
   wal: true
@@ -67,47 +69,79 @@ behavior:
   auto_convert_signed_books: true
   allow_crafting_copy: true
   preserve_generation: true
+  shell_title_format: "BookLite #%short_id%"
+  shell_author: "BookLite"
+  shell_page_placeholder: "This book is stored by BookLite. Right-click to read it."
+  deleted_book_message: "这本书已被管理员删除。"
+  missing_book_message: "这本书的数据缺失，请联系管理员。"
+
+lectern:
+  enabled: true
 
 uninstall:
   mode: false
+  passive_on_player_join: true
+  passive_on_inventory_open: true
+  max_items_per_tick: 64
+
+logging:
+  log_conversions: true
+  log_restores: true
+  log_admin_reads: true
 ```
 
-When `uninstall.mode` is `true`, new signed books are no longer auto-converted, and BookLite will passively restore shells in player inventories and opened containers. Passive restore snapshots slots on the main thread, reads SQLite asynchronously, then replaces only if the same shell is still in the same slot. Use this before removing the plugin.
+## 数据模型
 
-## Data Model
+BookLite 会在插件数据目录中创建 `books.db`，并维护 `books` 表：
 
-BookLite creates a `books` table with:
+- `id`：书籍 UUID。
+- `content_hash`：标题、作者和页面内容计算出的哈希，用于去重。
+- `title_raw`：原始标题。
+- `author`：作者。
+- `pages_json`：页面内容 JSON。
+- `total_pages`：页数。
+- `created_at` / `updated_at`：创建和更新时间。
+- `deleted_at`：软删除时间，未删除时为空。
 
-- UUID text id
-- content hash
-- title
-- author
-- pages JSON
-- page count
-- created/updated timestamps
-- nullable soft-delete timestamp
-
-The item shell stores only:
+空壳物品只保存：
 
 - `booklite:book_id`
 - `booklite:generation`
 - `booklite:version`
 
-SQLite is initialized with WAL support when configured, a 5 second busy timeout, and schema `user_version = 1`.
+启用 WAL 时，SQLite 会使用 `journal_mode = WAL` 和 `synchronous = NORMAL`，并设置 5 秒 busy timeout。
 
-## Current Compatibility Notes
+## 卸载模式
 
-BookLite targets the stable Bukkit/Spigot `BookMeta` API for broad compatibility. On modern Paper versions this still works, but it does not yet preserve every possible low-level 1.20.5+ data-component nuance beyond what `BookMeta` exposes.
+如果准备移除插件，先把配置中的：
 
-Lectern support is read-compatible: a lectern can hold the shell, and right-clicking it opens the stored content. Redstone page-output parity is not claimed yet.
+```yaml
+uninstall:
+  mode: true
+```
 
-## Build
+改为 `true` 并重载插件。开启后：
+
+- 新签名的书不再自动转换为 BookLite 空壳书。
+- 玩家上线时可被动恢复背包中的 BookLite 书。
+- 玩家打开容器时可被动恢复容器内的 BookLite 书。
+- 管理员可使用 `/booklite restorecontainer` 主动恢复当前容器。
+
+确认常用背包和容器都恢复完成后，再移除插件会更稳。
+
+## 兼容说明
+
+BookLite 当前基于 Bukkit / Spigot 的 `BookMeta` API，兼容面较广，但不承诺保留 1.20.5+ 所有底层 data component 细节。
+
+讲台支持目前定位为“读取兼容”：讲台可以持有 BookLite 空壳书，玩家右键讲台时会打开数据库中的完整内容。比较器输出、原版讲台翻页状态和复杂红石装置行为暂不宣称完全一致。
+
+## 构建
 
 ```powershell
 mvn verify
 ```
 
-The shaded plugin jar is created at:
+构建后的插件 jar 位于：
 
 ```text
 target/booklite-0.1.0.jar

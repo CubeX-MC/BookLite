@@ -30,9 +30,10 @@ import org.cubexmc.booklite.storage.BookRepository;
 public class BookLiteCommand implements CommandExecutor, TabCompleter {
 
     private static final int LIST_PAGE_SIZE = 8;
+    private static final long DAY_MILLIS = 86_400_000L;
     private static final List<String> ROOT_SUBS = Arrays.asList(
             "help", "status", "reload", "convert", "restore", "info", "read",
-            "delete", "undelete", "list", "restorecontainer");
+            "delete", "undelete", "purge", "list", "restorecontainer");
 
     private final BookLitePlugin plugin;
     private final BookService books;
@@ -64,6 +65,7 @@ public class BookLiteCommand implements CommandExecutor, TabCompleter {
             case "read" -> handleRead(sender, args);
             case "delete" -> handleDelete(sender, args, true);
             case "undelete" -> handleDelete(sender, args, false);
+            case "purge" -> handlePurge(sender, args);
             case "list" -> handleList(sender, args);
             case "restorecontainer" -> handleRestoreContainer(sender);
             default -> {
@@ -87,6 +89,7 @@ public class BookLiteCommand implements CommandExecutor, TabCompleter {
             sender.sendMessage(lang.msg("commands.help_delete"));
             sender.sendMessage(lang.msg("commands.help_undelete"));
         }
+        if (sender.hasPermission("booklite.admin.purge")) sender.sendMessage(lang.msg("commands.help_purge"));
         if (sender.hasPermission("booklite.admin.restorecontainer")) {
             sender.sendMessage(lang.msg("commands.help_restorecontainer"));
         }
@@ -294,6 +297,31 @@ public class BookLiteCommand implements CommandExecutor, TabCompleter {
         return true;
     }
 
+    private boolean handlePurge(CommandSender sender, String[] args) {
+        if (!sender.hasPermission("booklite.admin.purge")) {
+            lang.send(sender, "commands.no_permission");
+            return true;
+        }
+        int days = args.length >= 2 ? parseNonNegative(args[1], -1) : -1;
+        if (days < 0 || args.length < 3 || !"confirm".equalsIgnoreCase(args[2])) {
+            lang.send(sender, "admin.purge_usage");
+            return true;
+        }
+
+        long cutoff = System.currentTimeMillis() - (days * DAY_MILLIS);
+        try {
+            int purged = books.purgeDeleted(cutoff);
+            Map<String, String> p = new HashMap<>();
+            p.put("count", String.valueOf(purged));
+            p.put("days", String.valueOf(days));
+            lang.send(sender, "admin.purged", p);
+        } catch (SQLException ex) {
+            books.logStorageFailure("purge", ex);
+            lang.send(sender, "book.fail_storage");
+        }
+        return true;
+    }
+
     private boolean handleList(CommandSender sender, String[] args) {
         if (!sender.hasPermission("booklite.admin.list")) {
             lang.send(sender, "commands.no_permission");
@@ -383,10 +411,25 @@ public class BookLiteCommand implements CommandExecutor, TabCompleter {
         }
     }
 
+    private int parseNonNegative(String raw, int fallback) {
+        try {
+            int v = Integer.parseInt(raw);
+            return v >= 0 ? v : fallback;
+        } catch (NumberFormatException ex) {
+            return fallback;
+        }
+    }
+
     @Override
     public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
         if (args.length == 1) {
             return filter(ROOT_SUBS, args[0]);
+        }
+        if (args.length == 2 && "purge".equalsIgnoreCase(args[0])) {
+            return filter(List.of("30", "90", "0"), args[1]);
+        }
+        if (args.length == 3 && "purge".equalsIgnoreCase(args[0])) {
+            return filter(List.of("confirm"), args[2]);
         }
         return List.of();
     }

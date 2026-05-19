@@ -31,6 +31,7 @@ permissions:
       booklite.admin.info: true
       booklite.admin.read: true
       booklite.admin.delete: true
+      booklite.admin.purge: true
       booklite.admin.restorecontainer: true
   booklite.admin.status:
     default: op
@@ -50,6 +51,9 @@ permissions:
   booklite.admin.delete:
     default: op
     description: Soft delete or undelete stored book content.
+  booklite.admin.purge:
+    default: op
+    description: Permanently purge soft-deleted book content.
   booklite.admin.restorecontainer:
     default: op
     description: Restore BookLite books in an opened container.

@@ -166,6 +166,14 @@ public class BookRepository {
         }
     }
 
+    public synchronized int purgeDeleted(long deletedBeforeOrAt) throws SQLException {
+        try (PreparedStatement ps = connection.prepareStatement(
+                "DELETE FROM books WHERE deleted_at IS NOT NULL AND deleted_at <= ?")) {
+            ps.setLong(1, deletedBeforeOrAt);
+            return ps.executeUpdate();
+        }
+    }
+
     public synchronized Stats stats() throws SQLException {
         int total = count("SELECT COUNT(*) FROM books");
         int active = count("SELECT COUNT(*) FROM books WHERE deleted_at IS NULL");
