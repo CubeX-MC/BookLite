@@ -55,6 +55,8 @@ public class BookLitePlugin extends JavaPlugin {
             root.setTabCompleter(executor);
         }
 
+        new Metrics(this, 31451);
+
         getLogger().info("BookLite " + getDescription().getVersion() + " enabled.");
     }
 

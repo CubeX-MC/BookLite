@@ -30,6 +30,7 @@ import org.cubexmc.booklite.storage.BookRepository;
 public class BookLiteCommand implements CommandExecutor, TabCompleter {
 
     private static final int LIST_PAGE_SIZE = 8;
+    private static final int TAB_ID_LIMIT = 20;
     private static final long DAY_MILLIS = 86_400_000L;
     private static final List<String> ROOT_SUBS = Arrays.asList(
             "help", "status", "reload", "convert", "restore", "info", "read",
@@ -182,7 +183,12 @@ public class BookLiteCommand implements CommandExecutor, TabCompleter {
         }
         String id = codec.readBookId(item);
         try {
-            BookRecord record = books.resolve(id);
+            BookService.Resolution resolution = books.resolve(id);
+            if (resolution.ambiguous()) {
+                lang.send(player, "commands.ambiguous_id");
+                return true;
+            }
+            BookRecord record = resolution.record();
             if (record == null) {
                 lang.send(player, "book.fail_missing");
                 return true;
@@ -218,7 +224,12 @@ public class BookLiteCommand implements CommandExecutor, TabCompleter {
             return true;
         }
         try {
-            BookRecord record = books.resolve(args[1]);
+            BookService.Resolution resolution = books.resolve(args[1]);
+            if (resolution.ambiguous()) {
+                lang.send(sender, "commands.ambiguous_id");
+                return true;
+            }
+            BookRecord record = resolution.record();
             player.openBook(codec.createReadable(record, 0));
             if (record == null) {
                 lang.send(sender, "book.fail_missing");
@@ -245,7 +256,12 @@ public class BookLiteCommand implements CommandExecutor, TabCompleter {
             return true;
         }
         try {
-            BookRecord record = books.resolve(args[1]);
+            BookService.Resolution resolution = books.resolve(args[1]);
+            if (resolution.ambiguous()) {
+                lang.send(sender, "commands.ambiguous_id");
+                return true;
+            }
+            BookRecord record = resolution.record();
             if (record == null) {
                 lang.send(sender, "book.fail_missing");
                 return true;
@@ -281,7 +297,12 @@ public class BookLiteCommand implements CommandExecutor, TabCompleter {
             return true;
         }
         try {
-            BookRecord record = books.resolve(args[1]);
+            BookService.Resolution resolution = books.resolve(args[1]);
+            if (resolution.ambiguous()) {
+                lang.send(sender, "commands.ambiguous_id");
+                return true;
+            }
+            BookRecord record = resolution.record();
             if (record == null) {
                 lang.send(sender, "book.fail_missing");
                 return true;
@@ -373,15 +394,15 @@ public class BookLiteCommand implements CommandExecutor, TabCompleter {
     }
 
     private Inventory resolveRestoreInventory(Player player) {
+        Block target = player.getTargetBlockExact(6);
+        if (target != null && target.getState() instanceof Container container) {
+            return container.getInventory();
+        }
+
         Inventory open = player.getOpenInventory().getTopInventory();
         if (open != null && open.getType() != InventoryType.CRAFTING
                 && open.getType() != InventoryType.CREATIVE) {
             return open;
-        }
-
-        Block target = player.getTargetBlockExact(6);
-        if (target != null && target.getState() instanceof Container container) {
-            return container.getInventory();
         }
         return null;
     }
@@ -431,7 +452,43 @@ public class BookLiteCommand implements CommandExecutor, TabCompleter {
         if (args.length == 3 && "purge".equalsIgnoreCase(args[0])) {
             return filter(List.of("confirm"), args[2]);
         }
+        if (args.length == 2) {
+            return completeBookIds(sender, args[0], args[1]);
+        }
         return List.of();
+    }
+
+    private List<String> completeBookIds(CommandSender sender, String subcommand, String prefix) {
+        BookService.CompletionScope scope;
+        String permission;
+        switch (subcommand.toLowerCase()) {
+            case "info" -> {
+                scope = BookService.CompletionScope.ALL;
+                permission = "booklite.admin.info";
+            }
+            case "read" -> {
+                scope = BookService.CompletionScope.ALL;
+                permission = "booklite.admin.read";
+            }
+            case "delete" -> {
+                scope = BookService.CompletionScope.ACTIVE;
+                permission = "booklite.admin.delete";
+            }
+            case "undelete" -> {
+                scope = BookService.CompletionScope.DELETED;
+                permission = "booklite.admin.delete";
+            }
+            default -> {
+                return List.of();
+            }
+        }
+        if (!sender.hasPermission(permission)) return List.of();
+        try {
+            return books.completeIds(prefix, scope, TAB_ID_LIMIT);
+        } catch (SQLException ex) {
+            books.logStorageFailure("tab complete", ex);
+            return List.of();
+        }
     }
 
     private List<String> filter(List<String> source, String prefix) {

@@ -33,20 +33,43 @@ public class BookService {
         return record;
     }
 
-    public BookRecord resolve(String input) throws SQLException {
-        if (input == null || input.isBlank()) return null;
+    public Resolution resolve(String input) throws SQLException {
+        if (input == null || input.isBlank()) return Resolution.notFound();
         BookRecord exact = find(input);
-        if (exact != null) return exact;
+        if (exact != null) return Resolution.found(exact);
         var matches = repository.findByPrefix(input.toLowerCase(), 2);
-        if (matches.size() != 1) return null;
+        if (matches.isEmpty()) return Resolution.notFound();
+        if (matches.size() > 1) return Resolution.ambiguousMatch();
         BookRecord record = matches.get(0);
         cache.put(record);
-        return record;
+        return Resolution.found(record);
+    }
+
+    /** Outcome of resolving a (possibly short) book id: a hit, a miss, or an ambiguous prefix. */
+    public record Resolution(BookRecord record, boolean ambiguous) {
+        static Resolution found(BookRecord record) { return new Resolution(record, false); }
+        static Resolution notFound() { return new Resolution(null, false); }
+        static Resolution ambiguousMatch() { return new Resolution(null, true); }
+
+        public boolean found() { return record != null; }
     }
 
     public List<BookRecord> list(int page, int perPage) throws SQLException {
         int safePage = Math.max(1, page);
         return repository.list((safePage - 1) * perPage, perPage);
+    }
+
+    public List<String> completeIds(String prefix, CompletionScope scope, int limit) throws SQLException {
+        return repository.completeIdsByPrefix(prefix,
+                scope == CompletionScope.ALL || scope == CompletionScope.ACTIVE,
+                scope == CompletionScope.ALL || scope == CompletionScope.DELETED,
+                limit);
+    }
+
+    public enum CompletionScope {
+        ALL,
+        ACTIVE,
+        DELETED
     }
 
     public boolean delete(String id) throws SQLException {

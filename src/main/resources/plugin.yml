@@ -56,4 +56,4 @@ permissions:
     description: Permanently purge soft-deleted book content.
   booklite.admin.restorecontainer:
     default: op
-    description: Restore BookLite books in an opened container.
+    description: Restore BookLite books in a targeted container.

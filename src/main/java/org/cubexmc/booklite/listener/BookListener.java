@@ -8,6 +8,7 @@ import org.bukkit.Material;
 import org.bukkit.block.Block;
 import org.bukkit.block.Lectern;
 import org.bukkit.entity.Player;
+import org.bukkit.event.Event;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
@@ -61,20 +62,30 @@ public class BookListener implements Listener {
             return;
         }
 
+        BookRecord record;
         try {
-            BookRecord record = books.saveOrGet(draft);
-            int generation = codec.generationToInt(originalMeta);
-            BookMeta shellMeta = (BookMeta) originalMeta.clone();
-            codec.applyShellMeta(shellMeta, record, generation);
-            event.setNewBookMeta(shellMeta);
-            lang.send(player, "book.signed_converted", placeholders(record));
-            if (plugin.configManager().isLogConversions()) {
-                plugin.getLogger().info(player.getName() + " signed BookLite book " + record.id());
-            }
+            record = books.saveOrGet(draft);
         } catch (SQLException ex) {
             books.logStorageFailure("sign", ex);
             lang.send(player, "book.fail_storage");
+            return;
         }
+        int generation = codec.generationToInt(originalMeta);
+        int slot = event.getSlot();
+        // Spigot strips PDC from the meta passed to setNewBookMeta() during the
+        // writable→written conversion, so swap on the next tick where
+        // setItemMeta keeps PDC intact.
+        plugin.getServer().getScheduler().runTask(plugin, () -> {
+            if (!player.isOnline()) return;
+            ItemStack current = player.getInventory().getItem(slot);
+            if (current == null || current.getType() != Material.WRITTEN_BOOK) return;
+            if (codec.isBookLite(current)) return;
+            player.getInventory().setItem(slot,
+                    codec.createShell(record, generation, current.getAmount()));
+            if (plugin.configManager().isLogConversions()) {
+                plugin.getLogger().info(player.getName() + " signed BookLite book " + record.id());
+            }
+        });
     }
 
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
@@ -87,12 +98,13 @@ public class BookListener implements Listener {
 
         ItemStack item = event.getItem();
         if (!codec.isBookLite(item)) return;
+        if (!shouldOpenHeldBook(event)) return;
         if (!event.getPlayer().hasPermission("booklite.use")) {
             lang.send(event.getPlayer(), "commands.no_permission");
-            event.setCancelled(true);
+            cancelVanillaBookOpen(event);
             return;
         }
-        event.setCancelled(true);
+        cancelVanillaBookOpen(event);
         openBookLite(event.getPlayer(), codec.readBookId(item), codec.readGeneration(item));
     }
 
@@ -156,6 +168,15 @@ public class BookListener implements Listener {
                 plugin.configManager().getMaxItemsPerTick());
     }
 
+    private boolean shouldOpenHeldBook(PlayerInteractEvent event) {
+        if (event.getAction() != Action.RIGHT_CLICK_BLOCK) return true;
+        Block block = event.getClickedBlock();
+        if (block == null) return true;
+        // Leave interactive blocks (empty lecterns, chests, doors) to vanilla so a
+        // shell book can still be placed into a lectern and containers open normally.
+        return !block.getType().isInteractable();
+    }
+
     private boolean tryOpenLectern(PlayerInteractEvent event) {
         if (!plugin.configManager().isLecternEnabled()) return false;
         if (event.getAction() != Action.RIGHT_CLICK_BLOCK) return false;
@@ -164,9 +185,14 @@ public class BookListener implements Listener {
         if (!(block.getState() instanceof Lectern lectern)) return false;
         ItemStack book = lectern.getInventory().getItem(0);
         if (!codec.isBookLite(book)) return false;
-        event.setCancelled(true);
+        cancelVanillaBookOpen(event);
         openBookLite(event.getPlayer(), codec.readBookId(book), codec.readGeneration(book));
         return true;
+    }
+
+    private void cancelVanillaBookOpen(PlayerInteractEvent event) {
+        event.setCancelled(true);
+        event.setUseItemInHand(Event.Result.DENY);
     }
 
     private void openBookLite(Player player, String id, int generation) {
@@ -180,6 +206,9 @@ public class BookListener implements Listener {
             BookRecord finalRecord = record;
             plugin.getServer().getScheduler().runTask(plugin, () -> {
                 if (!player.isOnline()) return;
+                if (finalRecord != null && !finalRecord.isDeleted()) {
+                    refreshHeldShell(player, id, finalRecord);
+                }
                 player.openBook(codec.createReadable(finalRecord, generation));
                 if (finalRecord == null) {
                     lang.send(player, "book.fail_missing");
@@ -190,19 +219,20 @@ public class BookListener implements Listener {
         });
     }
 
+    private void refreshHeldShell(Player player, String id, BookRecord record) {
+        if (id == null) return;
+        ItemStack current = player.getInventory().getItemInMainHand();
+        if (!codec.isBookLite(current)) return;
+        if (!id.equals(codec.readBookId(current))) return;
+        BookMeta meta = (BookMeta) current.getItemMeta();
+        codec.applyShellMeta(meta, record, codec.readGeneration(current));
+        current.setItemMeta(meta);
+    }
+
     private void sendValidation(Player player, BookCodec.ValidationResult validation) {
         Map<String, String> p = new HashMap<>();
         p.put("actual", String.valueOf(validation.actual()));
         p.put("max", String.valueOf(validation.max()));
         lang.send(player, validation.key(), p);
-    }
-
-    private Map<String, String> placeholders(BookRecord record) {
-        Map<String, String> p = new HashMap<>();
-        p.put("id", record.id());
-        p.put("short_id", record.shortId());
-        p.put("title", record.title());
-        p.put("author", record.author());
-        return p;
     }
 }

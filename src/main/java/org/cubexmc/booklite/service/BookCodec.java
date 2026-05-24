@@ -8,7 +8,6 @@ import java.util.HexFormat;
 import java.util.List;
 
 import com.google.gson.Gson;
-import org.bukkit.ChatColor;
 import org.bukkit.Material;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.BookMeta;
@@ -17,6 +16,7 @@ import org.bukkit.persistence.PersistentDataContainer;
 import org.bukkit.persistence.PersistentDataType;
 import org.cubexmc.booklite.BookLitePlugin;
 import org.cubexmc.booklite.config.ConfigManager;
+import org.cubexmc.booklite.lang.LanguageManager;
 import org.cubexmc.booklite.model.BookRecord;
 
 public class BookCodec {
@@ -108,12 +108,9 @@ public class BookCodec {
     }
 
     public BookMeta applyShellMeta(BookMeta meta, BookRecord record, int generation) {
-        String title = config.getShellTitleFormat()
-                .replace("%short_id%", record.shortId())
-                .replace("%title%", record.title());
-        meta.setTitle(truncateBookTitle(ChatColor.stripColor(title)));
-        meta.setAuthor(config.getShellAuthor());
-        meta.setPages(List.of(config.getShellPagePlaceholder()));
+        meta.setTitle(visibleTitle(record));
+        meta.setAuthor(visibleAuthor(record));
+        meta.setPages(List.of(""));
         if (config.isPreserveGeneration()) {
             meta.setGeneration(intToGeneration(generation));
         }
@@ -121,19 +118,17 @@ public class BookCodec {
         pdc.set(keys.bookId(), PersistentDataType.STRING, record.id());
         pdc.set(keys.generation(), PersistentDataType.INTEGER, Math.max(0, generation));
         pdc.set(keys.version(), PersistentDataType.INTEGER, PdcKeys.SCHEMA_VERSION);
-        meta.setLore(List.of(
-                ChatColor.DARK_GRAY + "BookLite ID: " + record.shortId(),
-                ChatColor.GRAY + "Right-click to read stored content."
-        ));
+        meta.setLore(null);
         return meta;
     }
 
     public ItemStack createReadable(BookRecord record, int generation) {
+        LanguageManager lang = plugin.languageManager();
         if (record == null) {
-            return createSystemBook("BookLite Missing", config.getMissingBookMessage());
+            return createSystemBook(lang.msg("book.missing_title"), lang.msg("book.missing_page"));
         }
         if (record.isDeleted()) {
-            return createSystemBook("BookLite Deleted", config.getDeletedBookMessage());
+            return createSystemBook(lang.msg("book.deleted_title"), lang.msg("book.deleted_page"));
         }
         return createFullBook(record, generation);
     }
@@ -145,8 +140,8 @@ public class BookCodec {
     public ItemStack createFullBook(BookRecord record, int generation, int amount) {
         ItemStack item = new ItemStack(Material.WRITTEN_BOOK, Math.max(1, amount));
         BookMeta meta = (BookMeta) item.getItemMeta();
-        meta.setTitle(truncateBookTitle(record.title().isBlank() ? "Untitled" : record.title()));
-        meta.setAuthor(record.author().isBlank() ? "Unknown" : record.author());
+        meta.setTitle(visibleTitle(record));
+        meta.setAuthor(visibleAuthor(record));
         meta.setPages(record.pages().isEmpty() ? List.of("") : record.pages());
         if (config.isPreserveGeneration()) {
             meta.setGeneration(intToGeneration(generation));
@@ -190,6 +185,14 @@ public class BookCodec {
         meta.setPages(List.of(message == null || message.isBlank() ? "BookLite" : message));
         item.setItemMeta(meta);
         return item;
+    }
+
+    String visibleTitle(BookRecord record) {
+        return truncateBookTitle(record.title().isBlank() ? "Untitled" : record.title());
+    }
+
+    String visibleAuthor(BookRecord record) {
+        return record.author().isBlank() ? "Unknown" : record.author();
     }
 
     private String truncateBookTitle(String title) {

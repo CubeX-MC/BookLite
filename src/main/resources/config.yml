@@ -17,11 +17,8 @@ behavior:
   auto_convert_signed_books: true
   allow_crafting_copy: true
   preserve_generation: true
-  shell_title_format: "BookLite #%short_id%"
-  shell_author: "BookLite"
-  shell_page_placeholder: "This book is stored by BookLite. Right-click to read it."
-  deleted_book_message: "这本书已被管理员删除。"
-  missing_book_message: "这本书的数据缺失，请联系管理员。"
+  # BookLite keeps shell items visually close to vanilla books: title and author
+  # remain the original values, while only hidden PDC tags point to stored content.
 
 lectern:
   enabled: true

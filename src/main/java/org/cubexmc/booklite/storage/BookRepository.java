@@ -132,6 +132,28 @@ public class BookRepository {
         return out;
     }
 
+    public synchronized List<String> completeIdsByPrefix(
+            String prefix, boolean includeActive, boolean includeDeleted, int limit) throws SQLException {
+        List<String> out = new ArrayList<>();
+        if (!includeActive && !includeDeleted) return out;
+
+        String statusClause = includeActive && includeDeleted
+                ? ""
+                : includeActive ? " AND deleted_at IS NULL" : " AND deleted_at IS NOT NULL";
+        try (PreparedStatement ps = connection.prepareStatement(
+                "SELECT id FROM books WHERE id LIKE ?" + statusClause
+                        + " ORDER BY created_at DESC LIMIT ?")) {
+            ps.setString(1, (prefix == null ? "" : prefix.toLowerCase()) + "%");
+            ps.setInt(2, Math.max(1, limit));
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    out.add(rs.getString("id"));
+                }
+            }
+        }
+        return out;
+    }
+
     public synchronized List<BookRecord> list(int offset, int limit) throws SQLException {
         List<BookRecord> out = new ArrayList<>();
         try (PreparedStatement ps = connection.prepareStatement(

@@ -18,11 +18,6 @@ public class ConfigManager {
     private boolean autoConvertSignedBooks;
     private boolean allowCraftingCopy;
     private boolean preserveGeneration;
-    private String shellTitleFormat;
-    private String shellAuthor;
-    private String shellPagePlaceholder;
-    private String deletedBookMessage;
-    private String missingBookMessage;
     private boolean lecternEnabled;
     private boolean uninstallMode;
     private boolean passiveOnPlayerJoin;
@@ -52,12 +47,6 @@ public class ConfigManager {
         autoConvertSignedBooks = cfg.getBoolean("behavior.auto_convert_signed_books", true);
         allowCraftingCopy = cfg.getBoolean("behavior.allow_crafting_copy", true);
         preserveGeneration = cfg.getBoolean("behavior.preserve_generation", true);
-        shellTitleFormat = cfg.getString("behavior.shell_title_format", "BookLite #%short_id%");
-        shellAuthor = cfg.getString("behavior.shell_author", "BookLite");
-        shellPagePlaceholder = cfg.getString("behavior.shell_page_placeholder",
-                "This book is stored by BookLite. Right-click to read it.");
-        deletedBookMessage = cfg.getString("behavior.deleted_book_message", "这本书已被管理员删除。");
-        missingBookMessage = cfg.getString("behavior.missing_book_message", "这本书的数据缺失，请联系管理员。");
 
         lecternEnabled = cfg.getBoolean("lectern.enabled", true);
         uninstallMode = cfg.getBoolean("uninstall.mode", false);
@@ -81,11 +70,6 @@ public class ConfigManager {
     public boolean isAutoConvertSignedBooks() { return autoConvertSignedBooks; }
     public boolean isAllowCraftingCopy() { return allowCraftingCopy; }
     public boolean isPreserveGeneration() { return preserveGeneration; }
-    public String getShellTitleFormat() { return shellTitleFormat; }
-    public String getShellAuthor() { return shellAuthor; }
-    public String getShellPagePlaceholder() { return shellPagePlaceholder; }
-    public String getDeletedBookMessage() { return deletedBookMessage; }
-    public String getMissingBookMessage() { return missingBookMessage; }
     public boolean isLecternEnabled() { return lecternEnabled; }
     public boolean isUninstallMode() { return uninstallMode; }
     public boolean isPassiveOnPlayerJoin() { return passiveOnPlayerJoin; }
